@@ -4,12 +4,14 @@
 #define MAX_POINTER 1310720 // max index
 #define GROUP_BM_INC 1025 // incrementer for data group bitmaps
 
-#define FS_ID "f0f03410" // necessary, but useless for our case
-#define MAX_BLOCKS_STR "10240"
-#define NUM_INODES "1024"
+#define FS_ID "0xf0f03410" // necessary, but useless for our case
+#define TOTAL_BLOCKS "10240"
+#define TOTAL_INODES "1024"
 
 void startCFFS();
-char* disk_read(int, int);
+char* disk_read(int);
 void disk_write(char*, int);
-char* getInput();
-int parseInput(char*, char**);
+void partition();
+void init_superblock();
+void init_inbm();
+void init_inodes();

@@ -23,4 +23,38 @@
         }
     }
 
-    
+    char* getInput() {
+    char* input = NULL;
+    size_t ad = 0;
+    getline(&input, &ad, stdin);
+    input[strlen(input) - 1] = '\0';
+    return input;
+}
+
+int parseInput(char* string, char** args) {
+    if(strcspn(string, DELIM) == strlen(string)) {
+        strcpy(*args, string);
+        return 1;
+    }
+    char* arg = strtok(string, DELIM);
+    int count = 0;
+    while(arg != NULL) {
+        args[count++] = arg;
+        arg = strtok(NULL, DELIM);
+    }
+    args[count] = NULL;
+    return count + 1;
+}
+
+void init_inodes() {
+
+    char* initial = malloc(sizeof(char) * 4);
+    for(int a = 0; a < 5; a++)
+        initial[a] = 0x21;
+
+    // printf("%s\n", initial);
+
+    for(int i = 0; i < GROUP_SIZE; i++)
+        for(int j = 0; j < 24; j++)
+            disk_write(initial, i + 2);
+}
