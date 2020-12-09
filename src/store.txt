@@ -1,0 +1,26 @@
+    printf("Terminal\n");
+    while(1) {
+        char** args = malloc(sizeof(char*) * MAX_ARGS);
+        for(int i = 0; i < MAX_ARGS; args++)
+            *args = malloc(sizeof(char) * MAX_ARG_LEN);
+        printf(">");
+        char* input_buff = malloc(sizeof(char) * BUFF_LEN);
+        input_buff = getInput();
+        if(strcmp(input_buff, "exit\n") == 0)
+            exit(EXIT_SUCCESS);
+        int numargs = parseInput(input_buff, args);
+        free(input_buff);
+        args = realloc(args, sizeof(char*) * numargs);
+        
+        if(strcmp(args[0], "cffs") == 0) {
+            startCFFS();
+        } else {
+            if(fork() == 0) {
+               execvp(args[0], args);
+            } else {
+                wait(NULL);
+            }
+        }
+    }
+
+    
