@@ -6,8 +6,8 @@
 #include "main.h"
 
 typedef struct Block {
-    unsigned char bytes[BLOCK_SIZE];
-    int cptr;
+    unsigned char bytes[BLOCK_SIZE - sizeof(int)];
+    int cptr; // used to index last open char in block
 } Block;
 
 typedef struct CFile {
@@ -28,7 +28,7 @@ int db_groups_index = 1310720;
 int main() {
 
     make_file("bigfile");
-    printf("%s\n", disk_read(2));
+    printf("%s\n", disk_read(3));
 
     return 0;
 }
@@ -54,6 +54,7 @@ void disk_write(char* content, int block) {
     int pointer = disk_drive[block].cptr;
     for(int i = 0; i < strlen(content); i++, disk_drive[block].cptr++)
         disk_drive[block].bytes[pointer + i] = content[i];
+    disk_drive[block].cptr++; // so doesn't overwrite last char
 }
 
 void partition() {
@@ -86,10 +87,10 @@ void make_file(char* name) {
     int flag = 0;
     for(int i = 0; i < sizeof(inbm.bytes) / sizeof(char); i++) {
         for(int j = 0; j < 8; j++) {
-            if(inbm.bytes[i] >> 1)
+            if(inbm.bytes[i] >> j) // 00001111
                 continue;
             inbm.bytes[i] ^= 1 << j;
-            current.inode_index = 2 + (i * 8) + j;
+            current.inode_index = 3 + (i * 8) + j;
             flag = 1;
             break;
         }
@@ -106,5 +107,51 @@ void write_file(char* filename, char* content) {
 
 void init_inode(CFile current) {
 
-    
+    Block inode = disk_drive[current.inode_index];
+    char dbg_bitmap[] = {1025, 1024}; // starting index, increment value
+    // Iterate over all data block groups
+    // Find data block group with 5 contiguous blocks
+    int flag = 0;
+    Block dbg;
+    int db_index;
+    for(int i = dbg_bitmap[0]; i < MAX_BLOCKS; i += dbg_bitmap[1]) {
+        dbg = disk_drive[i]; // data group BLOCK struct
+        for(int j = 0; j < sizeof(dbg.bytes) / sizeof(char); j++) { // per byte of block
+            for(int k = 0; k < 2; k++) { // per bit of byte (cop out as can't find way to overflow to next byte)
+                if(dbg.bytes[j] >> k)
+                    continue;
+                    for(int l = 1; l < 5; l++) { // check if next 4 bits are 0
+                        if(dbg.bytes[j] >> k + l)
+                            break;
+                        for(int m = k; m < 4; m++) { // needs new for loop
+                            db_index = i + (j * 8) + k + m; // data block index
+                            ins_int(inode, db_index, m * 4);
+                            dbg.bytes[i] ^= 1 << k;
+                            flag = 1;
+                            goto jump;
+                            break;
+                        }
+                        if(flag)
+                            break;
+                    }
+                if(flag)
+                    break;
+            }
+            if(flag)
+                break;
+        }
+        if(flag)
+            break;
+    }
+    jump:
+}
+
+// taken from https://stackoverflow.com/questions/3784263/converting-an-int-into-a-4-byte-char-array-c
+void ins_int(Block inode, int db_index, int start_index) {
+
+    // 10000000 00001000 00000010 00000000
+    inode.bytes[start_index] = (db_index >> 24) & 0xFF; // 10000000
+    inode.bytes[start_index + 1] = (db_index >> 16) & 0xFF;
+    inode.bytes[start_index + 2] = (db_index >> 8) & 0xFF;
+    inode.bytes[start_index + 3] = db_index & 0xFF;
 }
