@@ -10,7 +10,14 @@ typedef struct Block {
     int cptr;
 } Block;
 
+typedef struct CFile {
+    char* filename;
+    int inode_index;
+} CFile;
+
 Block disk_drive[MAX_BLOCKS];
+CFile files[MAX_FILES];
+int len_files = 0;
 int superblock_index = 0;
 int inode_bitmap_index = 128;
 int inodes_index = 131072;
@@ -20,19 +27,8 @@ int db_groups_index = 1310720;
 
 int main() {
 
-    char* t = "henlo\n";
-    disk_write(t, 5);
-    disk_write(t, 5);
-    disk_write(t, 5);
-    disk_write(t, 5);
-    printf("%s\n", disk_read(5));
-
-    partition();
-    char* x = "This is my story. Please send help.";
-    disk_write(x, 766);
-    printf("%s\n", disk_read(766));
-
-    // printf("%s\n", disk_read(60));
+    make_file("bigfile");
+    printf("%s\n", disk_read(2));
 
     return 0;
 }
@@ -79,4 +75,36 @@ void init_inbm() {
     Block inbm = disk_drive[1];
     for(int i = 0; i < sizeof(inbm.bytes) / sizeof(char); i++)
         inbm.bytes[i] = '\0';
+}
+
+void make_file(char* name) {
+    
+    CFile current = files[len_files++];
+    current.filename = name;
+    // Look through inode bitmap and find first available inode
+    Block inbm = disk_drive[1];
+    int flag = 0;
+    for(int i = 0; i < sizeof(inbm.bytes) / sizeof(char); i++) {
+        for(int j = 0; j < 8; j++) {
+            if(inbm.bytes[i] >> 1)
+                continue;
+            inbm.bytes[i] ^= 1 << j;
+            current.inode_index = 2 + (i * 8) + j;
+            flag = 1;
+            break;
+        }
+        if(flag)
+            break;
+    }
+}
+
+void write_file(char* filename, char* content) {
+
+    CFile current = files[0];
+    init_inode(current);
+}
+
+void init_inode(CFile current) {
+
+    
 }
