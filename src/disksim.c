@@ -24,6 +24,7 @@ int main() {
 
     while(1) {
 
+        // allocates memory for input buffer, is freed on exit()
         printf("> ");
         char* input_buffer = malloc(sizeof(char) * 512);
         input_buffer = getInput();
@@ -32,6 +33,7 @@ int main() {
             args[i] = malloc(sizeof(char) * 512);
         int numargs = parseInput(input_buffer, args);
 
+        // control for commands
         if(strcmp(args[0], "make_file") == 0 && strlen(args[1]) < 55) {
             make_file(args[1]);
         } else if(strcmp(args[0], "write_file") == 0 && strlen(args[1]) < 55 && strlen(args[2]) < 512) {
