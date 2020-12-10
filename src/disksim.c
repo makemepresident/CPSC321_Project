@@ -7,6 +7,7 @@
 
 Block disk_drive[MAX_BLOCKS];
 CFile files[MAX_FILES];
+
 int len_files = 0;
 int superblock_index = 0;
 int inode_bitmap_index = 128;
@@ -17,8 +18,11 @@ int main() {
 
     make_file("bigfile");
     // make_file("smallfile");
+    write_file("smallfile", "henlo");
     write_file("bigfile", "hello");
-    // printf("%s\n", disk_read(1025));
+    printf("%s\n", disk_read(1025));
+    write_file("bigfile", " adding some more hellos");
+    printf("%s\n", disk_read(1025));
 
     return 0;
 }
@@ -44,7 +48,7 @@ void disk_write(char* content, int block) {
     int pointer = disk_drive[block].cptr;
     for(int i = 0; i < strlen(content); i++, disk_drive[block].cptr++)
         disk_drive[block].bytes[pointer + i] = content[i];
-    disk_drive[block].cptr++; // so doesn't overwrite last char
+    // disk_drive[block].cptr++; // so doesn't overwrite last char
 }
 
 void partition() {
@@ -70,7 +74,7 @@ void init_inbm() {
 
 void make_file(char* name) {
     
-    CFile current = files[len_files++];
+    CFile current = files[len_files];
     current.filename = name;
     // Look through inode bitmap and find first available inode
     Block inbm = disk_drive[1];
@@ -87,27 +91,38 @@ void make_file(char* name) {
         if(flag)
             break;
     }
+    init_inode(current);
+    files[len_files++] = current;
 }
 
 void write_file(char* filename, char* content) {
 
     CFile current;
-    for(int i = 0; i < MAX_FILES; i++)
+
+    int caught = 0;
+    for(int i = 0; i < len_files; i++)
         if(strcmp(files[i].filename, filename) == 0) {
             current = files[i];
-            break;
+            caught = 1;
         }
     
-    if(current.filename == NULL) {
-        printf("Unable to find file, please try again");
+    if(!caught) {
+        printf("Unable to find file, please try again\n");
         return;
     }
 
-    Block inode = init_inode(current);
+    Block inode = disk_drive[current.inode_index];
     if(strlen(content) < 124) {
+        // https://stackoverflow.com/questions/5784605/converting-hex-value-in-char-array-to-an-integer-value
         int db_index = inode.bytes[0] << 24 | inode.bytes[1] << 16 | inode.bytes[2] << 8 | inode.bytes[3];
         disk_write(content, db_index);
     }
+    printf("File write was successful!\n");
+}
+
+void delete_file(char* filename) {
+
+    
 }
 
 Block init_inode(CFile current) {
@@ -142,7 +157,7 @@ Block init_inode(CFile current) {
     }
     jump:
         disk_drive[current.inode_index] = inode;
-        printf("Didn't explode?\n");
+
     return inode;
 }
 
