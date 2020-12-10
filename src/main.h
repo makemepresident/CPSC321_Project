@@ -30,3 +30,6 @@ void make_file(char*);
 void write_file(char*, char*);
 Block init_inode(CFile);
 Block ins_int(Block, int, int);
+void delete_file(char*);
+char* getInput();
+int parseInput(char*, char**);
