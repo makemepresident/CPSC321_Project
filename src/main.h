@@ -9,6 +9,16 @@
 #define TOTAL_INODES "1024"
 #define MAX_FILES 20
 
+typedef struct Block {
+    unsigned char bytes[BLOCK_SIZE - sizeof(int)];
+    int cptr; // used to index last open char in block
+} Block;
+
+typedef struct CFile {
+    char* filename;
+    int inode_index;
+} CFile;
+
 void startCFFS();
 char* disk_read(int);
 void disk_write(char*, int);
@@ -17,3 +27,6 @@ void init_superblock();
 void init_inbm();
 void init_inodes();
 void make_file(char*);
+void write_file(char*, char*);
+Block init_inode(CFile);
+Block ins_int(Block, int, int);

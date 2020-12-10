@@ -5,16 +5,6 @@
 #include "shell.h"
 #include "main.h"
 
-typedef struct Block {
-    unsigned char bytes[BLOCK_SIZE - sizeof(int)];
-    int cptr; // used to index last open char in block
-} Block;
-
-typedef struct CFile {
-    char* filename;
-    int inode_index;
-} CFile;
-
 Block disk_drive[MAX_BLOCKS];
 CFile files[MAX_FILES];
 int len_files = 0;
@@ -23,12 +13,12 @@ int inode_bitmap_index = 128;
 int inodes_index = 131072;
 int db_groups_index = 1310720;
 
-// [0 - 128, 128 - 256, 256 - 131072, data groups ........]
-
 int main() {
 
     make_file("bigfile");
-    printf("%s\n", disk_read(3));
+    // make_file("smallfile");
+    write_file("bigfile", "hello");
+    // printf("%s\n", disk_read(1025));
 
     return 0;
 }
@@ -101,14 +91,29 @@ void make_file(char* name) {
 
 void write_file(char* filename, char* content) {
 
-    CFile current = files[0];
-    init_inode(current);
+    CFile current;
+    for(int i = 0; i < MAX_FILES; i++)
+        if(strcmp(files[i].filename, filename) == 0) {
+            current = files[i];
+            break;
+        }
+    
+    if(current.filename == NULL) {
+        printf("Unable to find file, please try again");
+        return;
+    }
+
+    Block inode = init_inode(current);
+    if(strlen(content) < 124) {
+        int db_index = inode.bytes[0] << 24 | inode.bytes[1] << 16 | inode.bytes[2] << 8 | inode.bytes[3];
+        disk_write(content, db_index);
+    }
 }
 
-void init_inode(CFile current) {
+Block init_inode(CFile current) {
 
     Block inode = disk_drive[current.inode_index];
-    char dbg_bitmap[] = {1025, 1024}; // starting index, increment value
+    int dbg_bitmap[2] = {1025, 1024}; // starting index, increment value
     // Iterate over all data block groups
     // Find data block group with 5 contiguous blocks
     int flag = 0;
@@ -125,33 +130,30 @@ void init_inode(CFile current) {
                             break;
                         for(int m = k; m < 4; m++) { // needs new for loop
                             db_index = i + (j * 8) + k + m; // data block index
-                            ins_int(inode, db_index, m * 4);
+                            inode = ins_int(inode, db_index, m * 4);
                             dbg.bytes[i] ^= 1 << k;
                             flag = 1;
-                            goto jump;
-                            break;
                         }
                         if(flag)
-                            break;
+                            goto jump;
                     }
-                if(flag)
-                    break;
             }
-            if(flag)
-                break;
         }
-        if(flag)
-            break;
     }
     jump:
+        disk_drive[current.inode_index] = inode;
+        printf("Didn't explode?\n");
+    return inode;
 }
 
 // taken from https://stackoverflow.com/questions/3784263/converting-an-int-into-a-4-byte-char-array-c
-void ins_int(Block inode, int db_index, int start_index) {
+Block ins_int(Block inode, int db_index, int start_index) {
 
     // 10000000 00001000 00000010 00000000
     inode.bytes[start_index] = (db_index >> 24) & 0xFF; // 10000000
     inode.bytes[start_index + 1] = (db_index >> 16) & 0xFF;
     inode.bytes[start_index + 2] = (db_index >> 8) & 0xFF;
     inode.bytes[start_index + 3] = db_index & 0xFF;
+
+    return inode;
 }
