@@ -17,8 +17,11 @@ int len_files = 0;
 
 int main() {
 
+    printf("CFFS shell starting - (type help for... help)\n");
+
     while(1) {
 
+        printf("> ");
         char* input_buffer = malloc(sizeof(char) * 255);
         input_buffer = getInput();
         char** args = malloc(sizeof(char*) * 3);
@@ -28,10 +31,20 @@ int main() {
 
         if(strcmp(args[0], "make_file") == 0 && strlen(args[1]) < 30) {
             make_file(args[1]);
-        } else if(strcmp(args[0], "write_file") && strlen(args[1]) < 30 && strlen(args[2]) < 124) {
+        } else if(strcmp(args[0], "write_file") == 0 && strlen(args[1]) < 30 && strlen(args[2]) < 124) {
             write_file(args[1], args[2]);
         } else if(strcmp(args[0], "exit") == 0) {
-            break;
+            printf("- Shell terminating\n");
+            exit(EXIT_SUCCESS);
+        } else if(strcmp(args[0], "ls") == 0) {
+            for(int i = 0; i < MAX_FILES; i++)
+                if(files[i].filename != NULL)
+                    printf("%s   ", files[i].filename);
+            printf("\n");
+        } else if(strcmp(args[0], "help") == 0) {
+            printf("Commands:   make_file   write_file   delete_file (WIP)   ls   exit\n");
+        } else {
+            printf("Unable to find that command, try something else\n");
         }
     }
 
@@ -179,6 +192,7 @@ void write_file(char* filename, char* content) {
     if(strlen(content) < 124) {
         int db_index = inode.bytes[0] << 24 | inode.bytes[1] << 16 | inode.bytes[2] << 8 | inode.bytes[3];
         disk_write(content, db_index);
+        printf("The file contains: \"%s\"\n", disk_read(db_index));
     } 
     //else if(strlen(content) < 124 * 2) {
         // write to first block for all up to 124
@@ -191,32 +205,23 @@ void write_file(char* filename, char* content) {
  */
 void delete_file(char* filename) {
 
-
-
-
-
-
-    // CFile current;
-    // int del_index;
-    // int caught = 0;
-    // for(int i = 0; i < len_files; i++)
-    //     if(strcmp(files[i].filename, filename) == 0) {
-    //         current = files[i];
-    //         caught = 1;
-    //         del_index = i;
-    //     }
+    CFile current;
+    int caught = 0;
+    for(int i = 0; i < len_files; i++)
+        if(strcmp(files[i].filename, filename) == 0) {
+            current = files[i];
+            caught = 1;
+        }
     
-    // if(!caught) {
-    //     printf("Unable to find file, please try again\n");
-    //     return;
-    // }
+    if(!caught) {
+        printf("Unable to find file, please try again\n");
+        return;
+    }
 
-    // Block inode = disk_drive[current.inode_index];
-    // int db_index = inode.bytes[0] << 24 | inode.bytes[1] << 16 | inode.bytes[2] << 8 | inode.bytes[3];
-    // disk_write("{0}", db_index);
-    // disk_write("{0}", current.inode_index);
-    // files[del_index].filename = 0x00;
-    // files[del_index].inode_index = 0;
+    Block inode = disk_drive[current.inode_index];
+    int db_index = inode.bytes[0] << 24 | inode.bytes[1] << 16 | inode.bytes[2] << 8 | inode.bytes[3];
+    disk_write("{0}", db_index);
+    disk_write("{0}", current.inode_index);
 }
 
 /**
@@ -305,7 +310,9 @@ char* getInput() {
 /**
  * Input parser (also taken from my assignment 1). This function takes
  * input from getInput() and returns a double char pointer in order to
- * separate each argument. For this project, it is only expecting two arguments.
+ * separate each argument. For this project, this function has mostly
+ * been hardcoded as iterating over a while loop requires parsing quotes
+ * and ain't nobody got time for that.
  * 
  * @param string user shell input
  * @param args passed args to modify
@@ -316,12 +323,16 @@ int parseInput(char* string, char** args) {
 
     char* parse = strtok(string, DELIM);
     strcpy(args[0], parse);
-    parse = strtok(NULL, DELIM);
-    strcpy(args[1], parse);
     if(parse != NULL) {
-        parse = strtok(NULL, "\0");
-        if(parse != NULL)
-            strcpy(args[2], parse);
+        parse = strtok(NULL, DELIM);
+        if(parse != NULL) {
+            strcpy(args[1], parse);
+            if(parse != NULL) {
+                parse = strtok(NULL, "\0");
+                if(parse != NULL)
+                    strcpy(args[2], parse);
+            }
+        }
     }
     return 3;
 }
