@@ -19,16 +19,19 @@ int main() {
 
     char* input_buffer = malloc(sizeof(char) * 255);
     input_buffer = getInput();
-    char** args = malloc(sizeof(char*) * 2);
-    for(int i = 0; i < 2; i++)
+    char** args = malloc(sizeof(char*) * 3);
+    for(int i = 0; i < 3; i++)
         args[i] = malloc(sizeof(char) * 255);
     int numargs = parseInput(input_buffer, args);
-    printf("%d\n", numargs);
+
+    if(strcmp(args[0], "make_file") && strlen(args[1]) < 30) {
+        make_file(args[1]);
+    } else if(strcmp(args[0], "write_file") && strlen(args[1]) < 30 && strlen(args[2]) < 124) {
+        write_file(args[1], args[2]);
+    }
 
     return 0;
 }
-
-void startCFFS() {}
 
 /**
  * Raw read to the CFFS disk based on the index of a block. Contains
@@ -295,7 +298,7 @@ char* getInput() {
 /**
  * Input parser (also taken from my assignment 1). This function takes
  * input from getInput() and returns a double char pointer in order to
- * separate each argument.
+ * separate each argument. For this project, it is only expecting two arguments.
  * 
  * @param string user shell input
  * @param args passed args to modify
@@ -306,8 +309,10 @@ int parseInput(char* string, char** args) {
 
     char* parse = strtok(string, DELIM);
     strcpy(args[0], parse);
-    parse = strtok(NULL, "\0");
+    parse = strtok(NULL, DELIM);
     strcpy(args[1], parse);
+    parse = strtok(NULL, "\0");
+    strcpy(args[2], parse);
     free(parse);
-    return 2;
+    return 3;
 }
