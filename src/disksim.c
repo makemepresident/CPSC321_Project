@@ -15,6 +15,9 @@ Block disk_drive[MAX_BLOCKS];
 CFile files[MAX_FILES];
 int len_files = 0;
 
+/**
+ * Main driver function, contains rudimentary shell with limited functionality
+ */
 int main() {
 
     printf("CFFS shell starting - (type help for... help)\n");
@@ -22,19 +25,23 @@ int main() {
     while(1) {
 
         printf("> ");
-        char* input_buffer = malloc(sizeof(char) * 255);
+        char* input_buffer = malloc(sizeof(char) * 512);
         input_buffer = getInput();
         char** args = malloc(sizeof(char*) * 3);
         for(int i = 0; i < 3; i++)
-            args[i] = malloc(sizeof(char) * 255);
+            args[i] = malloc(sizeof(char) * 512);
         int numargs = parseInput(input_buffer, args);
 
         if(strcmp(args[0], "make_file") == 0 && strlen(args[1]) < 30) {
             make_file(args[1]);
-        } else if(strcmp(args[0], "write_file") == 0 && strlen(args[1]) < 30 && strlen(args[2]) < 124) {
+        } else if(strcmp(args[0], "write_file") == 0 && strlen(args[1]) < 30 && strlen(args[2]) < 512) {
             write_file(args[1], args[2]);
         } else if(strcmp(args[0], "exit") == 0) {
             printf("- Shell terminating\n");
+            for(int i = 0; i < 3; i++)
+                free(args[i]);
+            free(args);
+            free(input_buffer);
             exit(EXIT_SUCCESS);
         } else if(strcmp(args[0], "ls") == 0) {
             for(int i = 0; i < MAX_FILES; i++)
@@ -94,9 +101,14 @@ void disk_write(char* content, int block) {
         return;
     }
     
-    int pointer = disk_drive[block].cptr;
-    for(int i = 0; i < strlen(content); i++, disk_drive[block].cptr++)
-        disk_drive[block].bytes[pointer + i] = content[i];
+
+    /** this function was used for additive writing, but became complex for multiple blocks **/
+    // int pointer = disk_drive[block].cptr;
+    // for(int i = 0; i < strlen(content); i++, disk_drive[block].cptr++)
+    //     disk_drive[block].bytes[pointer + i] = content[i];
+
+    for(int i = 0; i < strlen(content); i++)
+        disk_drive[block].bytes[i] = content[i];
 
     printf("File write was successful!\n");
 }
@@ -189,11 +201,24 @@ void write_file(char* filename, char* content) {
 
     // db_index conversion inspired by // https://stackoverflow.com/questions/5784605/converting-hex-value-in-char-array-to-an-integer-value
     Block inode = disk_drive[current.inode_index];
-    if(strlen(content) < 124) {
-        int db_index = inode.bytes[0] << 24 | inode.bytes[1] << 16 | inode.bytes[2] << 8 | inode.bytes[3];
-        disk_write(content, db_index);
-        printf("The file contains: \"%s\"\n", disk_read(db_index));
-    } 
+    int blocks_needed = strlen(content) / 128 + 1;
+    char temp[128];
+    int db_index;
+    if(blocks_needed < 4) {
+        for(int i = 0; i < blocks_needed; i++) {
+            db_index = inode.bytes[i * 4] << 24 | inode.bytes[i * 4 + 1] << 16 | inode.bytes[i * 4 + 2] << 8 | inode.bytes[i * 4 + 3];
+            for(int j = 0; j < 128; j++) {
+                temp[j] = content[(i * 128) + j];
+            }
+            disk_write(content, db_index);
+        }
+        printf("The file contains: ");
+        for(int i = 0; i < 4; i++)
+            printf("%s", disk_read(db_index + i));
+        printf("\n");
+    } else {
+        printf("Unfortunately, that's not going to work captain. We're all outta technology!\n");
+    }
     //else if(strlen(content) < 124 * 2) {
         // write to first block for all up to 124
         // write rest to second block
