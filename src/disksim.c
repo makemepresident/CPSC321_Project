@@ -32,10 +32,12 @@ int main() {
             args[i] = malloc(sizeof(char) * 512);
         int numargs = parseInput(input_buffer, args);
 
-        if(strcmp(args[0], "make_file") == 0 && strlen(args[1]) < 30) {
+        if(strcmp(args[0], "make_file") == 0 && strlen(args[1]) < 55) {
             make_file(args[1]);
-        } else if(strcmp(args[0], "write_file") == 0 && strlen(args[1]) < 30 && strlen(args[2]) < 512) {
+        } else if(strcmp(args[0], "write_file") == 0 && strlen(args[1]) < 55 && strlen(args[2]) < 512) {
             write_file(args[1], args[2]);
+        } else if(strcmp(args[0], "delete_file") == 0 && strlen(args[1]) < 55) {
+            delete_file(args[1]);
         } else if(strcmp(args[0], "exit") == 0) {
             printf("- Shell terminating\n");
             for(int i = 0; i < 3; i++)
@@ -226,16 +228,23 @@ void write_file(char* filename, char* content) {
 }
 
 /**
- * WIP might not have time :(
+ * WIP
+ * 
+ * Deletes a file given a user specified filename. At the moment, rudimentary;
+ * clears the inode of any information, and clears each corresponding direct
+ * data block of any information. Does not go back through data block bitmap
+ * to switch bits back to free.
  */
 void delete_file(char* filename) {
 
     CFile current;
     int caught = 0;
+    int file_index;
     for(int i = 0; i < len_files; i++)
         if(strcmp(files[i].filename, filename) == 0) {
             current = files[i];
             caught = 1;
+            file_index = i;
         }
     
     if(!caught) {
@@ -244,9 +253,16 @@ void delete_file(char* filename) {
     }
 
     Block inode = disk_drive[current.inode_index];
-    int db_index = inode.bytes[0] << 24 | inode.bytes[1] << 16 | inode.bytes[2] << 8 | inode.bytes[3];
-    disk_write("{0}", db_index);
+    int db_index;
+    for(int i = 0; i < 4; i++) {
+        db_index = inode.bytes[i * 4] << 24 | inode.bytes[i * 4 + 1] << 16 | inode.bytes[i * 4 + 2] << 8 | inode.bytes[i * 4 + 3];
+        disk_write("{0}", db_index);
+    }    
     disk_write("{0}", current.inode_index);
+    files[file_index].filename = '\0';
+    files[file_index].inode_index = 0;
+
+    printf("Deleted %s\n", filename);
 }
 
 /**
