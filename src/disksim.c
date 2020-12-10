@@ -17,17 +17,22 @@ int len_files = 0;
 
 int main() {
 
-    char* input_buffer = malloc(sizeof(char) * 255);
-    input_buffer = getInput();
-    char** args = malloc(sizeof(char*) * 3);
-    for(int i = 0; i < 3; i++)
-        args[i] = malloc(sizeof(char) * 255);
-    int numargs = parseInput(input_buffer, args);
+    while(1) {
 
-    if(strcmp(args[0], "make_file") && strlen(args[1]) < 30) {
-        make_file(args[1]);
-    } else if(strcmp(args[0], "write_file") && strlen(args[1]) < 30 && strlen(args[2]) < 124) {
-        write_file(args[1], args[2]);
+        char* input_buffer = malloc(sizeof(char) * 255);
+        input_buffer = getInput();
+        char** args = malloc(sizeof(char*) * 3);
+        for(int i = 0; i < 3; i++)
+            args[i] = malloc(sizeof(char) * 255);
+        int numargs = parseInput(input_buffer, args);
+
+        if(strcmp(args[0], "make_file") == 0 && strlen(args[1]) < 30) {
+            make_file(args[1]);
+        } else if(strcmp(args[0], "write_file") && strlen(args[1]) < 30 && strlen(args[2]) < 124) {
+            write_file(args[1], args[2]);
+        } else if(strcmp(args[0], "exit") == 0) {
+            break;
+        }
     }
 
     return 0;
@@ -142,6 +147,8 @@ void make_file(char* name) {
     files[len_files++] = current;
     init_inode(current);
     disk_drive[1] = inbm;
+
+    printf("\"%s\" was successfully created.\n", name);
 }
 
 /**
@@ -311,8 +318,10 @@ int parseInput(char* string, char** args) {
     strcpy(args[0], parse);
     parse = strtok(NULL, DELIM);
     strcpy(args[1], parse);
-    parse = strtok(NULL, "\0");
-    strcpy(args[2], parse);
-    free(parse);
+    if(parse != NULL) {
+        parse = strtok(NULL, "\0");
+        if(parse != NULL)
+            strcpy(args[2], parse);
+    }
     return 3;
 }
