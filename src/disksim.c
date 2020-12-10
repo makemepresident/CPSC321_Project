@@ -1,3 +1,7 @@
+/**
+ * Project was incredibly hard, please lord have mercy <3
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -12,6 +16,14 @@ CFile files[MAX_FILES];
 int len_files = 0;
 
 int main() {
+
+    char* input_buffer = malloc(sizeof(char) * 255);
+    input_buffer = getInput();
+    char** args = malloc(sizeof(char*) * 2);
+    for(int i = 0; i < 2; i++)
+        args[i] = malloc(sizeof(char) * 255);
+    int numargs = parseInput(input_buffer, args);
+    printf("%d\n", numargs);
 
     return 0;
 }
@@ -55,7 +67,7 @@ void disk_write(char* content, int block) {
         return;
 
     // Function for resetting data block char[] called from delete_file()
-    if(strcmp(content, "{0}")) {
+    if(strcmp(content, "{0}") == 0) {
         for(int i = 0; i < BLOCK_SIZE; i++)
             disk_drive[block].bytes[i] = 0x00;
         return;
@@ -64,6 +76,8 @@ void disk_write(char* content, int block) {
     int pointer = disk_drive[block].cptr;
     for(int i = 0; i < strlen(content); i++, disk_drive[block].cptr++)
         disk_drive[block].bytes[pointer + i] = content[i];
+
+    printf("File write was successful!\n");
 }
 
 /**
@@ -110,18 +124,21 @@ void make_file(char* name) {
     int flag = 0;
     for(int i = 0; i < sizeof(inbm.bytes) / sizeof(char); i++) {
         for(int j = 0; j < 8; j++) {
+            // printf("%d\n", inbm.bytes[i] >> j);
             if(inbm.bytes[i] >> j)
                 continue;
             inbm.bytes[i] ^= 1 << j;
             current.inode_index = 3 + (i * 8) + j;
+            // printf("%d\n", current.inode_index);
             flag = 1;
             break;
         }
         if(flag)
             break;
     }
-    init_inode(current);
     files[len_files++] = current;
+    init_inode(current);
+    disk_drive[1] = inbm;
 }
 
 /**
@@ -147,17 +164,16 @@ void write_file(char* filename, char* content) {
         return;
     }
 
+    // db_index conversion inspired by // https://stackoverflow.com/questions/5784605/converting-hex-value-in-char-array-to-an-integer-value
     Block inode = disk_drive[current.inode_index];
     if(strlen(content) < 124) {
-        // https://stackoverflow.com/questions/5784605/converting-hex-value-in-char-array-to-an-integer-value
         int db_index = inode.bytes[0] << 24 | inode.bytes[1] << 16 | inode.bytes[2] << 8 | inode.bytes[3];
         disk_write(content, db_index);
-    } else if(strlen(content) < 124 * 2) {
+    } 
+    //else if(strlen(content) < 124 * 2) {
         // write to first block for all up to 124
         // write rest to second block
-    } // continue else statements, no indirect pointer for now :(
-
-    printf("File write was successful!\n");
+    //} // continue else statements, no indirect pointer for now :(
 }
 
 /**
@@ -165,27 +181,32 @@ void write_file(char* filename, char* content) {
  */
 void delete_file(char* filename) {
 
-    CFile current;
-    int del_index;
-    int caught = 0;
-    for(int i = 0; i < len_files; i++)
-        if(strcmp(files[i].filename, filename) == 0) {
-            current = files[i];
-            caught = 1;
-            del_index = i;
-        }
-    
-    if(!caught) {
-        printf("Unable to find file, please try again\n");
-        return;
-    }
 
-    Block inode = disk_drive[current.inode_index];
-    int db_index = inode.bytes[0] << 24 | inode.bytes[1] << 16 | inode.bytes[2] << 8 | inode.bytes[3];
-    disk_write("{0}", db_index);
-    disk_write("{0}", current.inode_index);
-    files[del_index].filename = 0x00;
-    files[del_index].inode_index = 0;
+
+
+
+
+    // CFile current;
+    // int del_index;
+    // int caught = 0;
+    // for(int i = 0; i < len_files; i++)
+    //     if(strcmp(files[i].filename, filename) == 0) {
+    //         current = files[i];
+    //         caught = 1;
+    //         del_index = i;
+    //     }
+    
+    // if(!caught) {
+    //     printf("Unable to find file, please try again\n");
+    //     return;
+    // }
+
+    // Block inode = disk_drive[current.inode_index];
+    // int db_index = inode.bytes[0] << 24 | inode.bytes[1] << 16 | inode.bytes[2] << 8 | inode.bytes[3];
+    // disk_write("{0}", db_index);
+    // disk_write("{0}", current.inode_index);
+    // files[del_index].filename = 0x00;
+    // files[del_index].inode_index = 0;
 }
 
 /**
@@ -211,21 +232,17 @@ Block init_inode(CFile current) {
     for(int i = 1025; i < MAX_BLOCKS; i += 1024) { // hits each data block group
         dbg = disk_drive[i]; // data group BLOCK struct
         for(int j = 0; j < sizeof(dbg.bytes) / sizeof(char); j++) { // per byte of block
-            for(int k = 0; k < 2; k++) { // per bit of byte (cop out as can't find way to overflow to next byte)
+            for(int k = 0; k < 5; k++) { // per bit of byte (cop out as can't find way to overflow to next byte)
                 if(dbg.bytes[j] >> k)
                     continue;
-                    for(int l = 1; l < 5; l++) { // check if next 4 bits are 0
-                        if(dbg.bytes[j] >> k + l)
-                            break;
-                        for(int m = k; m < 4; m++) { // could do bitwise 4 at time, but no
-                            db_index = i + (j * 8) + k + m; // data block index
-                            inode = ins_int(inode, db_index, m * 4);
-                            dbg.bytes[i] ^= 1 << k; // toggle bit
-                            flag = 1;
-                        }
-                        if(flag)
-                            goto jump;
-                    }
+                db_index = i + (j * 8) + k; // data block index
+                inode = ins_int(inode, db_index, k * 4);
+                dbg.bytes[j] ^= 1 << k; // toggle bit
+                flag = 1;
+            }
+            if(flag) {
+                disk_drive[i] = dbg;
+                goto jump;
             }
         }
     }
@@ -287,16 +304,10 @@ char* getInput() {
  */
 int parseInput(char* string, char** args) {
 
-    if(strcspn(string, DELIM) == strlen(string)) {
-        strcpy(*args, string);
-        return 1;
-    }
-    char* arg = strtok(string, DELIM);
-    int count = 0;
-    while(arg != NULL) {
-        args[count++] = arg;
-        arg = strtok(NULL, DELIM);
-    }
-    args[count] = NULL;
-    return count + 1;
+    char* parse = strtok(string, DELIM);
+    strcpy(args[0], parse);
+    parse = strtok(NULL, "\0");
+    strcpy(args[1], parse);
+    free(parse);
+    return 2;
 }
